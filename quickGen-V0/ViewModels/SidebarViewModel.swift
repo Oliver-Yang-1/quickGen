@@ -41,6 +41,8 @@ class SidebarViewModel: ObservableObject {
     
     // 根据名称获取工作区
     func getWorkspace(byName name: String) -> Workspace? {
+        // 确保我们有最新的工作区数据
+        refreshWorkspaces()
         return fullWorkspaces.first { $0.name == name }
     }
     

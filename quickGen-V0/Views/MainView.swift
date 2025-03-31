@@ -23,7 +23,7 @@ struct MainView: View {
                     } else if let workspace = appViewModel.selectedWorkspace {
                         // 工作区内容
                         WorkspaceContentView(
-                            viewModel: WorkspaceViewModel(workspace: workspace),
+                            workspace: workspace,
                             isSidebarVisible: $isSidebarVisible
                         )
                     }
@@ -55,6 +55,9 @@ struct MainView: View {
                                     if let workspace = sidebarViewModel.getWorkspace(byName: workspaceName) {
                                         appViewModel.selectWorkspace(workspace)
                                         isSidebarVisible = false
+                                    } else {
+                                        print("错误：无法找到名为 \(workspaceName) 的工作区")
+                                        // 可以在这里添加用户提示或其他错误处理
                                     }
                                 }
                             )

@@ -4,70 +4,123 @@ import SwiftUI
 
 class SettingsViewModel: ObservableObject {
     // API设置
-    @Published var openAIKey: String = ""
-    @Published var openAIBaseURL: String = "https://api.openai.com/v1"
-    @Published var openAIModel: String = "gpt-3.5-turbo"
+    @Published var apiEndpoint: String = "https://api.openai.com/v1"
+    @Published var apiKey: String = ""
+    @Published var isApiKeyVisible: Bool = false
     
     // 应用外观设置
     @Published var appearance: AppAppearance = .system
     
-    // 用户选择的默认模型选项
-    @Published var selectedModelIndex: Int = 0
+    // 模型设置
+    @Published var availableModels: [String] = []
+    @Published var selectedModel: String = ""
+    @Published var newModelName: String = ""
+    @Published var showingAddModelAlert: Bool = false
     
-    // 可用的模型选项
-    let availableModels = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]
+    // 设置管理器
+    private let settingsManager: SettingsManagerProtocol
     
-    // UserDefaults键
-    private let keyOpenAIKey = "openai_api_key"
-    private let keyOpenAIBaseURL = "openai_base_url"
-    private let keyOpenAIModel = "openai_model"
-    private let keyAppearance = "app_appearance"
+    // 取消订阅令牌
+    private var cancellables = Set<AnyCancellable>()
     
-    init() {
+    init(settingsManager: SettingsManagerProtocol = SettingsManager.shared) {
+        self.settingsManager = settingsManager
+        
+        // 加载设置
         loadSettings()
         
-        // 设置当前选中的模型索引
-        if let index = availableModels.firstIndex(of: openAIModel) {
-            selectedModelIndex = index
-        }
+        // 订阅设置变化
+        settingsManager.settingsPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] settings in
+                self?.updateViewModelFromSettings(settings)
+            }
+            .store(in: &cancellables)
     }
     
     // 加载保存的设置
     func loadSettings() {
-        let defaults = UserDefaults.standard
-        
-        openAIKey = defaults.string(forKey: keyOpenAIKey) ?? ""
-        openAIBaseURL = defaults.string(forKey: keyOpenAIBaseURL) ?? "https://api.openai.com/v1"
-        openAIModel = defaults.string(forKey: keyOpenAIModel) ?? "gpt-3.5-turbo"
-        
-        let appearanceValue = defaults.integer(forKey: keyAppearance)
-        appearance = AppAppearance(rawValue: appearanceValue) ?? .system
+        let settings = settingsManager.loadSettings()
+        updateViewModelFromSettings(settings)
     }
     
     // 保存设置
     func saveSettings() {
-        let defaults = UserDefaults.standard
+        var settings = settingsManager.loadSettings()
+        settings.apiEndpoint = apiEndpoint
+        settings.apiKey = apiKey
+        settings.appearance = convertAppAppearanceToAppearanceSetting(appearance)
+        settings.availableModels = availableModels
+        settings.selectedModel = selectedModel
         
-        defaults.set(openAIKey, forKey: keyOpenAIKey)
-        defaults.set(openAIBaseURL, forKey: keyOpenAIBaseURL)
-        defaults.set(openAIModel, forKey: keyOpenAIModel)
-        defaults.set(appearance.rawValue, forKey: keyAppearance)
+        _ = settingsManager.saveSettings(settings)
+    }
+    
+    // 添加新模型
+    func addCustomModel() {
+        guard !newModelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        let trimmedName = newModelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 如果模型名称不在列表中，则添加
+        if !availableModels.contains(trimmedName) {
+            availableModels.append(trimmedName)
+            saveSettings()
+        }
+        
+        // 重置新模型名称并关闭提示框
+        newModelName = ""
+        showingAddModelAlert = false
     }
     
     // 更新选中的模型
     func updateSelectedModel() {
-        openAIModel = availableModels[selectedModelIndex]
         saveSettings()
+    }
+    
+    // 切换API密钥可见性
+    func toggleApiKeyVisibility() {
+        isApiKeyVisible.toggle()
     }
     
     // 重置所有设置到默认值
     func resetToDefaults() {
-        openAIKey = ""
-        openAIBaseURL = "https://api.openai.com/v1"
-        openAIModel = "gpt-3.5-turbo"
-        appearance = .system
-        selectedModelIndex = 0
-        saveSettings()
+        if settingsManager.resetSettings() {
+            loadSettings()
+        }
+    }
+    
+    // 从AppSettings更新ViewModel的属性
+    private func updateViewModelFromSettings(_ settings: AppSettings) {
+        apiEndpoint = settings.apiEndpoint
+        apiKey = settings.apiKey
+        appearance = convertAppearanceSettingToAppAppearance(settings.appearance)
+        availableModels = settings.availableModels
+        selectedModel = settings.selectedModel
+    }
+    
+    // 转换AppAppearance到AppearanceSetting
+    private func convertAppAppearanceToAppearanceSetting(_ appAppearance: AppAppearance) -> AppearanceSetting {
+        switch appAppearance {
+        case .system:
+            return .system
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+    
+    // 转换AppearanceSetting到AppAppearance
+    private func convertAppearanceSettingToAppAppearance(_ appearanceSetting: AppearanceSetting) -> AppAppearance {
+        switch appearanceSetting {
+        case .system:
+            return .system
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
     }
 }
 

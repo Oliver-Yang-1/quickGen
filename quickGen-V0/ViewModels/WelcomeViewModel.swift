@@ -13,7 +13,7 @@ class WelcomeViewModel: ObservableObject {
     @Published var isShowingRecentWorkspaces: Bool = false
     
     // 引用AppViewModel
-    let appViewModel: AppViewModel
+    public let appViewModel: AppViewModel
     
     init(appViewModel: AppViewModel) {
         self.appViewModel = appViewModel

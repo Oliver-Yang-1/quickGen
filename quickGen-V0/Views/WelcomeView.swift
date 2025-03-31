@@ -160,6 +160,9 @@ struct WelcomeView: View {
                                     if let workspace = sidebarViewModel.getWorkspace(byName: workspaceName) {
                                         viewModel.appViewModel.selectWorkspace(workspace)
                                         isSidebarVisible = false
+                                    } else {
+                                        print("错误：无法找到名为 \(workspaceName) 的工作区")
+                                        // 可以在这里添加用户提示或其他错误处理
                                     }
                                 }
                             )

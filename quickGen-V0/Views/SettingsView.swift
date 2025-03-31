@@ -16,46 +16,73 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        SecureField("sk-...", text: $viewModel.openAIKey)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            .textContentType(.password)
-                            .onChange(of: viewModel.openAIKey) { _ in
-                                viewModel.saveSettings()
+                        HStack {
+                            if viewModel.isApiKeyVisible {
+                                TextField("sk-...", text: $viewModel.apiKey)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .onChange(of: viewModel.apiKey) { _ in
+                                        viewModel.saveSettings()
+                                    }
+                            } else {
+                                SecureField("sk-...", text: $viewModel.apiKey)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .onChange(of: viewModel.apiKey) { _ in
+                                        viewModel.saveSettings()
+                                    }
                             }
+                            
+                            Button(action: {
+                                viewModel.toggleApiKeyVisibility()
+                            }) {
+                                Image(systemName: viewModel.isApiKeyVisible ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     }
                     .padding(.vertical, 4)
                     
-                    // OpenAI Base URL
+                    // API端点
                     VStack(alignment: .leading) {
-                        Text("OpenAI Base URL")
+                        Text("OpenAI API 端点")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        TextField("https://api.openai.com/v1", text: $viewModel.openAIBaseURL)
+                        TextField("https://api.openai.com/v1", text: $viewModel.apiEndpoint)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .keyboardType(.URL)
-                            .onChange(of: viewModel.openAIBaseURL) { _ in
+                            .onChange(of: viewModel.apiEndpoint) { _ in
                                 viewModel.saveSettings()
                             }
                     }
                     .padding(.vertical, 4)
                     
-                    // OpenAI 模型选择
+                    // 模型选择
                     VStack(alignment: .leading) {
-                        Text("OpenAI 模型")
+                        Text("AI 模型")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        Picker("", selection: $viewModel.selectedModelIndex) {
-                            ForEach(0..<viewModel.availableModels.count, id: \.self) { index in
-                                Text(viewModel.availableModels[index]).tag(index)
+                        HStack {
+                            Picker("选择模型", selection: $viewModel.selectedModel) {
+                                ForEach(viewModel.availableModels, id: \.self) { model in
+                                    Text(model).tag(model)
+                                }
                             }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .onChange(of: viewModel.selectedModelIndex) { _ in
-                            viewModel.updateSelectedModel()
+                            .pickerStyle(MenuPickerStyle())
+                            .onChange(of: viewModel.selectedModel) { _ in
+                                viewModel.updateSelectedModel()
+                            }
+                            
+                            Button(action: {
+                                viewModel.showingAddModelAlert = true
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.title3)
+                            }
                         }
                     }
                     .padding(.vertical, 4)
@@ -116,6 +143,21 @@ struct SettingsView: View {
                     },
                     secondaryButton: .cancel(Text("取消"))
                 )
+            }
+            .alert("添加自定义模型", isPresented: $viewModel.showingAddModelAlert) {
+                TextField("模型名称", text: $viewModel.newModelName)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                
+                Button("取消", role: .cancel) {
+                    viewModel.newModelName = ""
+                }
+                
+                Button("添加") {
+                    viewModel.addCustomModel()
+                }
+            } message: {
+                Text("请输入想要添加的AI模型名称")
             }
         }
         .preferredColorScheme(viewModel.appearance.colorScheme)

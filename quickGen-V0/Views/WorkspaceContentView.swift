@@ -1,8 +1,13 @@
 import SwiftUI
 
 struct WorkspaceContentView: View {
-    @StateObject var viewModel: WorkspaceViewModel
+    @StateObject private var viewModel: WorkspaceViewModel
     @Binding var isSidebarVisible: Bool
+    
+    init(workspace: Workspace, isSidebarVisible: Binding<Bool>) {
+        self._viewModel = StateObject(wrappedValue: WorkspaceViewModel(workspace: workspace))
+        self._isSidebarVisible = isSidebarVisible
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -64,6 +69,6 @@ struct WorkspaceContentView: View {
 struct WorkspaceContentView_Previews: PreviewProvider {
     static var previews: some View {
         let workspace = Workspace(name: "示例工作区")
-        WorkspaceContentView(viewModel: WorkspaceViewModel(workspace: workspace), isSidebarVisible: .constant(false))
+        WorkspaceContentView(workspace: workspace, isSidebarVisible: .constant(false))
     }
 } 
