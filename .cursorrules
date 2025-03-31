@@ -1,0 +1,61 @@
+Okay, here are the "Rules for Cursor" (iOS Development Guidelines) for the QuickGen project, prioritizing native SwiftUI components and incorporating other essential iOS development best practices:
+
+**QuickGen iOS Development Guidelines ("Rules for Cursor")**
+
+These guidelines aim to ensure the QuickGen iOS application is robust, maintainable, native-feeling, and built efficiently using modern best practices.
+
+**I. SwiftUI First & UI Implementation**
+
+1.  **Prioritize Native SwiftUI:** Use standard SwiftUI views (`Text`, `Button`, `List`, `NavigationStack`, `Sheet`, `TextField`, `VStack`, `HStack`, etc.) as the default choice for all UI elements. Avoid UIKit wrappers unless there's a strong, documented reason (e.g., `WKWebView` for H5 rendering, which is specified in the project).
+2.  **Declarative UI:** Embrace SwiftUI's declarative nature. Define UI based on state, letting SwiftUI handle the rendering updates. Avoid imperative manipulation of the UI where possible.
+3.  **Leverage SwiftUI Layout:** Utilize SwiftUI's layout containers (`VStack`, `HStack`, `ZStack`, `Grid`, `LazyVStack`, `LazyHStack`, `Spacer`) and modifiers (`.padding`, `.frame`, `.navigationTitle`, etc.) for building adaptive and responsive layouts.
+4.  **View Composition:** Break down complex screens into smaller, reusable SwiftUI views. This improves readability, testability, and maintainability.
+5.  **Standard Animations & Transitions:** Use built-in SwiftUI animations and transitions (`.animation()`, `.transition()`, `withAnimation { ... }`) for standard UI effects (like the sidebar slide-in/out). Keep animations purposeful and aligned with iOS conventions.
+
+**II. Architecture & State Management**
+
+6.  **Adopt MVVM (or similar):** Implement a clear architectural pattern like Model-View-ViewModel (MVVM) to separate UI logic (View) from presentation logic and state management (ViewModel) and data/business logic (Model).
+7.  **Effective State Management:**
+    *   Use `@State` for transient, view-local state.
+    *   Use `@StateObject` to create and manage the lifecycle of `ObservableObject` ViewModels within a view.
+    *   Use `@ObservedObject` to reference existing `ObservableObject` instances owned elsewhere.
+    *   Use `@Binding` to pass mutable state down the view hierarchy.
+    *   Use `@EnvironmentObject` for dependency injection of shared objects/state accessible deep in the view hierarchy (use judiciously).
+    *   Clearly define the "source of truth" for each piece of state.
+8.  **Data Flow:** Ensure data flows predictably, typically unidirectionally (e.g., user action -> ViewModel -> updates state -> View updates).
+
+**III. Data Handling & Networking**
+
+9.  **Clear Data Models:** Define clear, concise `struct`s (preferred) or `class`es for data models (e.g., `Workspace`, `ChatMessage`). Make them `Codable` if they need to be persisted or sent over the network.
+10. **BFF Interaction ONLY:** **Strictly adhere** to the requirement that all LLM interactions go through the BFF. *No direct LLM API calls or API keys stored/used in the iOS app.*
+11. **Robust Networking:** Implement networking calls to the BFF using Swift Concurrency (`async`/`await`). Handle different network states gracefully (loading, success, error). Provide clear user feedback for network operations.
+12. **Persistence:** Choose an appropriate method for local persistence:
+    *   `UserDefaults` for simple settings (e.g., Appearance).
+    *   File System (`FileManager`) or a database solution (Core Data, SwiftData if targeting iOS 17+) for storing workspace data (chat history, generated code). Design for potential future migration (e.g., to iCloud).
+
+**IV. Performance & Responsiveness**
+
+13. **Main Thread Awareness:** Keep the main thread free for UI updates. Perform network requests, data processing, and other potentially long-running tasks asynchronously using Swift Concurrency (`Task`, `async`/`await`).
+14. **Optimize Lists:** Use `List` or `LazyVStack`/`LazyHStack` for potentially long lists (like chat history or workspace lists) to ensure efficient rendering.
+15. **Profile Regularly:** Use Instruments to identify and address performance bottlenecks if they arise, especially around complex view updates, data loading, or `WKWebView` interactions.
+
+**V. User Experience & HIG**
+
+16. **Adhere to HIG:** Follow Apple's Human Interface Guidelines (HIG) regarding navigation patterns, control usage, typography, spacing, touch targets, and platform consistency.
+17. **Adaptability:** Design UIs that adapt seamlessly to different screen sizes (iPhone, iPad) and orientations using SwiftUI's layout system. Implement appropriate sidebar behavior for each form factor.
+18. **Clear Feedback:** Provide immediate and clear visual feedback for user actions (button taps, loading states, errors, success confirmations). Use standard controls like `ProgressView` or custom indicators consistently.
+19. **Accessibility (A11y):** Implement accessibility from the start. Use standard controls where possible (they often have good defaults), provide meaningful labels for VoiceOver (`.accessibilityLabel`), support Dynamic Type, and ensure sufficient color contrast.
+
+**VI. Code Quality & Maintainability**
+
+20. **Clean Code:** Write clear, readable, and well-documented Swift code. Use meaningful names for variables, functions, and types. Follow Swift API Design Guidelines.
+21. **Modularity:** Keep components (Views, ViewModels, services) focused on a single responsibility.
+22. **Error Handling:** Implement robust error handling for networking, data persistence, and other operations that can fail. Present errors to the user in a non-disruptive, informative way.
+23. **Dependency Management:** Use Swift Package Manager (SPM) for managing external dependencies. Keep dependencies minimal and justified.
+
+**VII. Testing**
+
+24. **Unit Tests:** Write unit tests for ViewModels, data manipulation logic, and utility functions to ensure correctness.
+25. **UI Tests (Optional but Recommended):** Consider basic UI tests for critical user flows (e.g., creating a workspace, sending a prompt, viewing preview) to catch regressions.
+
+By following these guidelines, the "Cursor" team can build a high-quality, native, and maintainable QuickGen iOS application using the best of SwiftUI and established iOS practices.
