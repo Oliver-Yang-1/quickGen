@@ -16,11 +16,17 @@ class WorkspaceViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     // 是否在预览模式
     @Published var isPreviewMode: Bool = false
+    // 当前流式响应的消息ID
+    @Published var streamingMessageId: UUID?
     
     // 工作区数据管理器
     private let workspaceDataManager: WorkspaceDataManager
     // BFF服务
-    // private let bffService: BFFService
+    private let bffService: BFFServiceProtocol
+    // 取消订阅令牌
+    private var cancellables = Set<AnyCancellable>()
+    // 是否使用流式响应
+    private let useStreamResponse = true
     
     // 生成的HTML代码
     private var generatedHTML: String? {
@@ -30,10 +36,12 @@ class WorkspaceViewModel: ObservableObject {
         }
     }
     
-    init(workspace: Workspace, workspaceDataManager: WorkspaceDataManager = FileSystemWorkspaceDataManager.shared) {
+    init(workspace: Workspace, 
+         workspaceDataManager: WorkspaceDataManager = FileSystemWorkspaceDataManager.shared,
+         bffService: BFFServiceProtocol = RealBFFService.shared) {
         self.workspace = workspace
         self.workspaceDataManager = workspaceDataManager
-        // self.bffService = bffService
+        self.bffService = bffService
         loadChatHistory()
         
         // 加载最新生成的HTML代码
@@ -66,8 +74,90 @@ class WorkspaceViewModel: ObservableObject {
         let input = userInput
         userInput = ""
         
-        // 调用AI生成回复
-        generateResponse(to: input)
+        // 调用BFF服务生成回复
+        if useStreamResponse {
+            generateStreamResponse(to: input)
+        } else {
+            generateResponse(to: input)
+        }
+    }
+    
+    // 生成AI流式回复
+    private func generateStreamResponse(to userMessage: String) {
+        isLoading = true
+        errorMessage = nil
+        
+        // 创建初始的空AI消息
+        let aiMessage = ChatMessage(
+            workspaceId: workspace.id,
+            sender: .ai,
+            content: ""
+        )
+        
+        // 记录当前流式消息ID
+        streamingMessageId = aiMessage.id
+        
+        // 添加初始空消息到聊天记录
+        chatMessages.append(aiMessage)
+        
+        // 调用BFF服务
+        bffService.sendStreamMessage(
+            userMessage,
+            workspaceId: workspace.id,
+            onUpdate: { [weak self] partialResponse in
+                guard let self = self, let index = self.findMessageIndex(id: aiMessage.id) else { return }
+                
+                DispatchQueue.main.async {
+                    // 更新消息内容
+                    self.chatMessages[index].content = partialResponse
+                    
+                    // 尝试提取HTML代码
+                    if let htmlCode = self.extractHTMLCode(from: partialResponse) {
+                        self.generatedHTML = htmlCode
+                    }
+                }
+            },
+            onComplete: { [weak self] finalResponse in
+                guard let self = self, let index = self.findMessageIndex(id: aiMessage.id) else { return }
+                
+                DispatchQueue.main.async {
+                    // 更新最终消息内容
+                    self.chatMessages[index].content = finalResponse
+                    
+                    // 保存完整的AI消息
+                    self.workspaceDataManager.saveChatMessage(self.chatMessages[index], toWorkspace: self.workspace.id)
+                    
+                    // 提取HTML代码并保存
+                    if let htmlCode = self.extractHTMLCode(from: finalResponse) {
+                        self.generatedHTML = htmlCode
+                        
+                        // 保存生成的代码
+                        let generatedCode = GeneratedCode(
+                            workspaceId: self.workspace.id,
+                            htmlContent: htmlCode
+                        )
+                        self.workspaceDataManager.saveGeneratedCode(generatedCode, forWorkspace: self.workspace.id)
+                    }
+                    
+                    self.isLoading = false
+                    self.streamingMessageId = nil
+                    self.updateLastModifiedDate()
+                }
+            },
+            onError: { [weak self] error in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    self.handleError("发送消息失败: \(error.localizedDescription)")
+                    self.streamingMessageId = nil
+                }
+            }
+        )
+    }
+    
+    // 查找消息索引
+    private func findMessageIndex(id: UUID) -> Int? {
+        return chatMessages.firstIndex(where: { $0.id == id })
     }
     
     // 生成AI回复
@@ -75,55 +165,52 @@ class WorkspaceViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        // 模拟API请求延迟
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            // 模拟API请求
-            // 在实际应用中，这里应该调用BFF服务
-            // self.bffService.sendPrompt(prompt: userMessage, workspaceId: self.workspace.id) { result in
-            //    switch result {
-            //    case .success(let response):
-            //        // 处理成功响应
-            //    case .failure(let error):
-            //        // 处理错误
-            //    }
-            // }
-            
-            // 模拟API请求 - 目前使用模拟数据
-            if Bool.random() && userMessage.contains("错误") {
-                // 模拟错误
-                self.handleError("连接超时，请稍后再试")
-                return
-            }
-            
-            // 模拟AI回复
-            let responseContent = "我已根据你的描述生成了H5页面。\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <title>生成的页面</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }\n    .container { max-width: 800px; margin: 0 auto; }\n    h1 { color: #333; }\n    .button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }\n    .button:hover { background-color: #45a049; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>你好，这是根据描述生成的页面</h1>\n    <p>这是一个简单的演示页面，根据你的要求生成。</p>\n    <button class=\"button\">点击我</button>\n  </div>\n</body>\n</html>\n```"
-            
-            let aiMessage = ChatMessage(
-                workspaceId: self.workspace.id,
-                sender: .ai,
-                content: responseContent
+        // 调用BFF服务
+        bffService.sendMessage(userMessage, workspaceId: workspace.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    guard let self = self else { return }
+                    
+                    self.isLoading = false
+                    
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        self.handleError("发送消息失败: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { [weak self] responseContent in
+                    guard let self = self else { return }
+                    
+                    let aiMessage = ChatMessage(
+                        workspaceId: self.workspace.id,
+                        sender: .ai,
+                        content: responseContent
+                    )
+                    
+                    self.chatMessages.append(aiMessage)
+                    
+                    // 保存AI消息
+                    self.workspaceDataManager.saveChatMessage(aiMessage, toWorkspace: self.workspace.id)
+                    
+                    // 提取HTML代码
+                    if let htmlCode = self.extractHTMLCode(from: responseContent) {
+                        self.generatedHTML = htmlCode
+                        
+                        // 保存生成的代码
+                        let generatedCode = GeneratedCode(
+                            workspaceId: self.workspace.id,
+                            htmlContent: htmlCode
+                        )
+                        self.workspaceDataManager.saveGeneratedCode(generatedCode, forWorkspace: self.workspace.id)
+                    }
+                    
+                    self.updateLastModifiedDate()
+                }
             )
-            
-            self.chatMessages.append(aiMessage)
-            
-            // 保存AI消息
-            self.workspaceDataManager.saveChatMessage(aiMessage, toWorkspace: self.workspace.id)
-            
-            // 提取HTML代码
-            if let htmlCode = self.extractHTMLCode(from: responseContent) {
-                self.generatedHTML = htmlCode
-                
-                // 保存生成的代码
-                let generatedCode = GeneratedCode(
-                    workspaceId: self.workspace.id,
-                    htmlContent: htmlCode
-                )
-                self.workspaceDataManager.saveGeneratedCode(generatedCode, forWorkspace: self.workspace.id)
-            }
-            
-            self.isLoading = false
-            self.updateLastModifiedDate()
-        }
+            .store(in: &cancellables)
     }
     
     // 从AI回复中提取HTML代码
@@ -172,7 +259,11 @@ class WorkspaceViewModel: ObservableObject {
         if userInput.isEmpty {
             // 如果没有新的输入，但有历史消息，使用最后一条用户消息
             if let lastUserMessage = chatMessages.last(where: { $0.sender == .user }) {
-                generateResponse(to: lastUserMessage.content)
+                if useStreamResponse {
+                    generateStreamResponse(to: lastUserMessage.content)
+                } else {
+                    generateResponse(to: lastUserMessage.content)
+                }
             } else {
                 errorMessage = "请输入描述内容"
             }

@@ -4,6 +4,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @Environment(\.presentationMode) var presentationMode
     @State private var showingResetAlert = false
+    @State private var showingBFFServiceTest = false
     
     var body: some View {
         NavigationView {
@@ -86,6 +87,20 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    
+                    // API测试按钮
+                    Button(action: {
+                        showingBFFServiceTest = true
+                    }) {
+                        HStack {
+                            Image(systemName: "network")
+                                .foregroundColor(.blue)
+                            Text("测试API连接")
+                                .foregroundColor(.blue)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 6)
+                    }
                 }
                 
                 // 外观设置部分
@@ -158,6 +173,9 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("请输入想要添加的AI模型名称")
+            }
+            .sheet(isPresented: $showingBFFServiceTest) {
+                BFFServiceTestView()
             }
         }
         .preferredColorScheme(viewModel.appearance.colorScheme)

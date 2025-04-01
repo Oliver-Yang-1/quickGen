@@ -11,8 +11,11 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 16) {
                         ForEach(viewModel.chatMessages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
+                            MessageBubble(
+                                message: message,
+                                isStreaming: viewModel.streamingMessageId == message.id
+                            )
+                            .id(message.id)
                         }
                         
                         if viewModel.isLoading {
@@ -29,6 +32,10 @@ struct ChatView: View {
                     scrollToBottom(proxy: scrollProxy)
                 }
                 .onChange(of: viewModel.isLoading) { _ in
+                    scrollToBottom(proxy: scrollProxy)
+                }
+                // 添加对流式消息变化的监听
+                .onChange(of: viewModel.chatMessages.last?.content) { _ in
                     scrollToBottom(proxy: scrollProxy)
                 }
                 .onAppear {
@@ -99,6 +106,7 @@ struct ChatView: View {
 // 消息气泡组件
 struct MessageBubble: View {
     let message: ChatMessage
+    let isStreaming: Bool
     @State private var isShowingCode = false
     
     var body: some View {
@@ -179,10 +187,18 @@ struct MessageBubble: View {
                     .cornerRadius(12)
                 } else {
                     // 普通消息
-                    Text(message.content)
-                        .padding()
-                        .background(message.sender == .user ? Color.blue.opacity(0.2) : Color(UIColor.systemGray5))
-                        .cornerRadius(12)
+                    VStack(alignment: .leading) {
+                        Text(message.content)
+                            .padding()
+                            .background(message.sender == .user ? Color.blue.opacity(0.2) : Color(UIColor.systemGray5))
+                            .cornerRadius(12)
+                        
+                        // 如果是流式响应中的消息，显示打字指示器
+                        if isStreaming && message.sender == .ai {
+                            TypingIndicator()
+                                .padding(.leading, 8)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: UIScreen.main.bounds.width * 0.8)
@@ -225,6 +241,32 @@ struct MessageBubble: View {
     }
 }
 
+// 打字指示器组件
+struct TypingIndicator: View {
+    @State private var animationState = false
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(Color.gray.opacity(0.5))
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(animationState ? 1.0 : 0.5)
+                    .animation(
+                        Animation.easeInOut(duration: 0.3)
+                            .repeatForever()
+                            .delay(Double(i) * 0.15),
+                        value: animationState
+                    )
+            }
+        }
+        .padding(6)
+        .onAppear {
+            animationState = true
+        }
+    }
+}
+
 // 加载指示器
 struct LoadingIndicator: View {
     @State private var isAnimating = false
@@ -251,5 +293,12 @@ struct LoadingIndicator: View {
         .onAppear {
             isAnimating = true
         }
+    }
+}
+
+struct ChatView_Previews: PreviewProvider {
+    static var previews: some View {
+        let workspace = Workspace(name: "测试工作区")
+        return ChatView(viewModel: WorkspaceViewModel(workspace: workspace))
     }
 } 
