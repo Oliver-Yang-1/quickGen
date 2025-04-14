@@ -176,7 +176,7 @@ class RealBFFService: BFFServiceProtocol {
             let requestBody = ChatCompletionRequest(
                 model: settings.selectedModel,
                 messages: [
-                    ChatCompletionRequest.Message(role: "system", content: "你是一个H5页面生成助手，会根据用户的描述生成HTML代码。请用markdown格式返回代码，使用```html作为代码块开始，```作为代码块结束。"),
+                    ChatCompletionRequest.Message(role: "system", content: "你是一个很了解h5页面实现的技术产品经理，和用户一起讨论h5页面产品需求，最终生成一份相对清晰的页面描述，最终你的回答会交给LLM进行页面生成"),
                     ChatCompletionRequest.Message(role: "user", content: message)
                 ],
                 temperature: 0.7,
