@@ -12,6 +12,12 @@ struct AppSettings: Codable, Equatable {
     /// 应用外观设置（浅色/深色/系统）
     var appearance: AppearanceSetting = .system
     
+    /// 接口API设置
+    var webApi: String = "https://quick-gen-backend-app-1234-8b2bbc2ffa96.herokuapp.com"
+    
+    /// 本地用户名称设置
+    var userName: String = "用户"
+   
     /// API设置
     var apiEndpoint: String = "https://api.openai.com/v1"
     

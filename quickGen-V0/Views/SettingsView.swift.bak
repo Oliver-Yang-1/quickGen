@@ -5,7 +5,6 @@ struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var showingResetAlert = false
     @State private var showingBFFServiceTest = false
-    @State private var inputText = ""
     
     var body: some View {
         NavigationView {
@@ -122,10 +121,11 @@ struct SettingsView: View {
                         Text("用户名")
                         Spacer()
                         Button(action: {
-                            viewModel.showingUserNameAlert = true
+//                            newUsername = viewModel.username
+//                            showingUsernameDialog = true
                         }) {
-                            Text(viewModel.user_name)
-                                .foregroundColor(.blue)
+//                            Text(viewModel.username)
+//                                .foregroundColor(.blue)
                         }
                     }
                 }
@@ -188,22 +188,6 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("请输入想要添加的AI模型名称")
-            }
-            .alert("修改用户名", isPresented: $viewModel.showingUserNameAlert) {
-                TextField("用户名称", text: $inputText)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                
-                Button("取消", role: .cancel) {
-                   
-                }
-                
-                Button("修改") {
-                    viewModel.user_name = inputText
-                    
-                    var settings = SettingsManager.shared.loadSettings()
-                    settings.userName = viewModel.user_name
-                }
             }
             .sheet(isPresented: $showingBFFServiceTest) {
                 BFFServiceTestView()

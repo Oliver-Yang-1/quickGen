@@ -11,11 +11,15 @@ class SettingsViewModel: ObservableObject {
     // 应用外观设置
     @Published var appearance: AppAppearance = .system
     
+    // 用户名称
+    @Published var user_name: String = "用户"
+    
     // 模型设置
     @Published var availableModels: [String] = []
     @Published var selectedModel: String = ""
     @Published var newModelName: String = ""
     @Published var showingAddModelAlert: Bool = false
+    @Published var showingUserNameAlert: Bool = false
     
     // 设置管理器
     private let settingsManager: SettingsManagerProtocol
